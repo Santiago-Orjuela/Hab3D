@@ -1,0 +1,52 @@
+# Hab3D .gitignore
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env/
+.venv/
+venv/
+ENV/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Data/cache
+*.dat
+*.csv
+*.npz
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.synctex.gz
+build/
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Generated images/figures
+figures/*.png
+figures/*.pdf
+
+# PlanetaryGrid compiled/intermediate
+PlanetaryGrid/__pycache__/
+
+# Temporary
+*.tmp
+*.bak
+~$*
+
+# Ignore large raw grid files if any (uncomment as needed)
+# PlanetaryGrid/**/*.dat
