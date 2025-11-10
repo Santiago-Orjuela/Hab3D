@@ -1,0 +1,3 @@
+[submodule "Codigos-Scripts/PlanetaryGrid"]
+	path = Codigos-Scripts/PlanetaryGrid
+	url = https://github.com/seap-udea/PlanetaryGrid.git
