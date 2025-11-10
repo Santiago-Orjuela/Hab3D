@@ -50,3 +50,8 @@ PlanetaryGrid/__pycache__/
 
 # Ignore large raw grid files if any (uncomment as needed)
 # PlanetaryGrid/**/*.dat
+
+# Private writing (keep outside GitHub)
+Textos/Anteproyecto/
+Textos/Proyecto/
+Privado/
