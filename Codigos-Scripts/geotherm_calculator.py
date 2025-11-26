@@ -10,8 +10,8 @@ Características principales:
 - Conductividad térmica con promedio Voigt-Reuss-Hill (VRH)
 - Acoplamiento presión-temperatura-densidad usando BurnMan
 - Gravedad local variable con la profundidad
-- **NUEVO**: Detección automática de límites de temperatura de BurnMan
-- **NUEVO**: Modelos de evolución temporal del gradiente geotérmico
+- Detección automática de límites de temperatura de BurnMan
+- Modelos de evolución temporal del gradiente geotérmico
 
 Detección de Límites:
 ---------------------
@@ -30,31 +30,11 @@ del tiempo geológico:
 - A_surface_temporal(): Producción radiactiva temporal
 - calculate_geotherm_evolution(): Calcula perfiles T(z) para múltiples épocas
 
-Funciones Principales:
----------------------
-- calculate_geotherm(): Calcula perfil T(z), P(z), ρ(z) para un tiempo dado
-- calculate_geotherm_evolution(): Evolución temporal del gradiente geotérmico
-- prepare_rocks_dict(): Crea Composites de BurnMan desde composiciones modales
-- get_mineral_objects(): Obtiene objetos minerales de BurnMan
 
-Ejemplo de Uso Rápido:
-----------------------
->>> from geotherm_calculator import *
->>> mineral_objects = get_mineral_objects()
->>> rocks = prepare_rocks_dict(mineral_objects=mineral_objects)
->>> 
->>> # Perfil para la Tierra actual
->>> df = calculate_geotherm(rocks=rocks, q_s=65e-3, z_max=100e3,
-...                         dz=100, R_planet=Re, M_total=Me)
->>> 
->>> # Evolución temporal (0-1 Ga)
->>> results = calculate_geotherm_evolution(rocks=rocks,
-...                                       composition=COMPOSITION_DEFAULT,
-...                                       n_times=10, t_range=(0, 1.0))
 
-Autor: Santiago
+Autor: Santiago Orjuela
 Fecha: Octubre 2025
-Última actualización: Octubre 31, 2025
+Última actualización: Noviembre 24, 2025
 Basado en: Hasterok & Chapman (2011), Turcotte & Schubert (2014)
 """
 
@@ -65,19 +45,20 @@ from astropy import constants
 from burnman import minerals, Composite
 
 # =============================================================================
-# CONSTANTES FÍSICAS
+# PHYSICAL CONSTANTS / CONSTANTES FÍSICAS
 # =============================================================================
-G = constants.G.value  # Constante gravitacional
-Me = constants.M_earth.value  # Masa de la Tierra (kg)
-Re = constants.R_earth.value  # Radio de la Tierra (m)
-km = 1000.0  # metros por kilómetro
+G = constants.G.value  # Gravitational constant / Constante gravitacional
+Me = constants.M_earth.value  # Earth mass (kg) / Masa de la Tierra (kg)
+Re = constants.R_earth.value  # Earth radius (m) / Radio de la Tierra (m)
+km = 1000.0  # meters per kilometer / metros por kilómetro
 
 
 # =============================================================================
-# COMPOSICIONES MODALES DE CAPAS (% volumétrico)
+# MODAL LAYER COMPOSITIONS (vol %) / COMPOSICIONES MODALES DE CAPAS (% volumétrico)
 # =============================================================================
 
-# Composiciones basadas en estudios petrológicos de corteza continental
+# Based on petrological studies of continental crust Hasterok & Chapman (2011)
+# Basadas en estudios petrológicos de corteza continental Hasterok & Chapman (2011)
 COMPOSITION_DEFAULT = {
     "upper": {
         "Quartz": 20, "Orthoclase": 15, "Albite": 32, "Anorthite": 8,
@@ -105,9 +86,10 @@ COMPOSITION_DEFAULT = {
 
 
 # =============================================================================
-# PARÁMETROS DE CONDUCTIVIDAD TÉRMICA POR MINERAL
+# THERMAL CONDUCTIVITY PARAMETERS BY MINERAL / PARÁMETROS DE CONDUCTIVIDAD TÉRMICA POR MINERAL
 # =============================================================================
 
+# Based on Hofmeister (1999), Stackhouse (2015), Hasterok & Chapman (2011)
 # Basados en Hofmeister (1999), Stackhouse (2015), Hasterok & Chapman (2011)
 MINERAL_PARAMS = {
     "Quartz": {"lambda0": 6.5, "n": 0.5, "KT": 60.0, "KTp": 4.0,
@@ -142,17 +124,22 @@ MINERAL_PARAMS = {
 
 
 # =============================================================================
-# OBJETOS MINERALES DE BURNMAN
+# BURNMAN MINERAL OBJECTS / OBJETOS MINERALES DE BURNMAN
 # =============================================================================
 
 def get_mineral_objects():
     """
+    Español:
     Crea diccionario con objetos de minerales de BurnMan.
     
-    Returns
-    -------
-    dict
-        Diccionario {nombre_mineral: objeto_BurnMan}
+    Retorna:
+        dict: Diccionario {nombre_mineral: objeto_BurnMan}
+    
+    English:
+    Create dictionary with BurnMan mineral objects.
+    
+    Returns:
+        dict: Dictionary {mineral_name: BurnMan_object}
     """
     return {
         "Quartz": minerals.SLB_2011.qtz(),
@@ -173,28 +160,36 @@ def get_mineral_objects():
 
 
 # =============================================================================
-# FUNCIONES DE CONDUCTIVIDAD TÉRMICA
+# THERMAL CONDUCTIVITY FUNCTIONS / FUNCIONES DE CONDUCTIVIDAD TÉRMICA
 # =============================================================================
 
 def lambda_lattice(mineral, T, P=0.0):
     """
+    Español:
     Conductividad térmica lattice (fonónica) dependiente de T y P.
     
     λ_lattice = λ₀ (298/T)ⁿ (1 + K'ₜ/Kₜ · P[GPa])
     
-    Parameters
-    ----------
-    mineral : str
-        Nombre del mineral
-    T : float
-        Temperatura (K)
-    P : float
-        Presión (Pa)
+    Parámetros:
+        mineral (str): Nombre del mineral
+        T (float): Temperatura (K)
+        P (float): Presión (Pa)
         
-    Returns
-    -------
-    float
-        Conductividad lattice (W/m·K)
+    Retorna:
+        float: Conductividad lattice (W/m·K)
+    
+    English:
+    Lattice (phononic) thermal conductivity dependent on T and P.
+    
+    λ_lattice = λ₀ (298/T)ⁿ (1 + K'ₜ/Kₜ · P[GPa])
+    
+    Parameters:
+        mineral (str): Mineral name
+        T (float): Temperature (K)
+        P (float): Pressure (Pa)
+        
+    Returns:
+        float: Lattice conductivity (W/m·K)
     """
     p = MINERAL_PARAMS[mineral]
     P_GPa = P / 1e9
@@ -208,21 +203,29 @@ def lambda_lattice(mineral, T, P=0.0):
 
 def lambda_radiative(mineral, T):
     """
+    Español:
     Conductividad térmica radiativa (fotónica) dependiente de T.
     
     λ_rad = 0.5 λ_R,max [1 + erf((T - T_R)/ω)]
     
-    Parameters
-    ----------
-    mineral : str
-        Nombre del mineral
-    T : float
-        Temperatura (K)
+    Parámetros:
+        mineral (str): Nombre del mineral
+        T (float): Temperatura (K)
         
-    Returns
-    -------
-    float
-        Conductividad radiativa (W/m·K)
+    Retorna:
+        float: Conductividad radiativa (W/m·K)
+    
+    English:
+    Radiative (photonic) thermal conductivity dependent on T.
+    
+    λ_rad = 0.5 λ_R,max [1 + erf((T - T_R)/ω)]
+    
+    Parameters:
+        mineral (str): Mineral name
+        T (float): Temperature (K)
+        
+    Returns:
+        float: Radiative conductivity (W/m·K)
     """
     p = MINERAL_PARAMS[mineral]
     lamRmax = p["lambdaRmax"]
@@ -238,29 +241,39 @@ def lambda_radiative(mineral, T):
 
 def lambda_effective_VRH(comp_dict, T, P=0.0):
     """
+    Español:
     Conductividad térmica efectiva usando promedio Voigt-Reuss-Hill.
-    
     Apropiado para agregados policristalinos (Hasterok & Chapman 2011).
     
     λ_VRH = 0.5 (λ_Voigt + λ_Reuss)
-    
     donde:
     - λ_Voigt = Σ fᵢ λᵢ (suma ponderada, límite superior)
     - λ_Reuss = (Σ fᵢ/λᵢ)⁻¹ (media armónica, límite inferior)
     
-    Parameters
-    ----------
-    comp_dict : dict
-        Diccionario {mineral: fracción} normalizado a suma 1.0
-    T : float
-        Temperatura (K)
-    P : float
-        Presión (Pa)
+    Parámetros:
+        comp_dict (dict): Diccionario {mineral: fracción} normalizado a suma 1.0
+        T (float): Temperatura (K)
+        P (float): Presión (Pa)
         
-    Returns
-    -------
-    float
-        Conductividad térmica efectiva (W/m·K)
+    Retorna:
+        float: Conductividad térmica efectiva (W/m·K)
+    
+    English:
+    Effective thermal conductivity using Voigt-Reuss-Hill averaging.
+    Appropriate for polycrystalline aggregates (Hasterok & Chapman 2011).
+    
+    λ_VRH = 0.5 (λ_Voigt + λ_Reuss)
+    where:
+    - λ_Voigt = Σ fᵢ λᵢ (weighted sum, upper bound)
+    - λ_Reuss = (Σ fᵢ/λᵢ)⁻¹ (harmonic mean, lower bound)
+    
+    Parameters:
+        comp_dict (dict): Dictionary {mineral: fraction} normalized to sum 1.0
+        T (float): Temperature (K)
+        P (float): Pressure (Pa)
+        
+    Returns:
+        float: Effective thermal conductivity (W/m·K)
     """
     lambda_voigt = 0.0
     lambda_reuss_inv = 0.0
@@ -279,27 +292,34 @@ def lambda_effective_VRH(comp_dict, T, P=0.0):
 
 
 # =============================================================================
-# FUNCIONES DE COMPOSICIÓN Y ESTRUCTURA
+# COMPOSITION AND STRUCTURE FUNCTIONS / FUNCIONES DE COMPOSICIÓN Y ESTRUCTURA
 # =============================================================================
 
 def get_composition_at_depth(z, composition=None, boundaries=None):
     """
+    Español:
     Devuelve el diccionario de composición modal para una profundidad dada.
     
-    Parameters
-    ----------
-    z : float
-        Profundidad (m)
-    composition : dict, optional
-        Diccionario con claves 'upper', 'middle', 'lower', 'mantle'
-    boundaries : list, optional
-        Lista [d1, d2, d3] con fronteras entre capas (m)
-        Default: [16e3, 23e3, 39e3] (Tierra)
+    Parámetros:
+        z (float): Profundidad (m)
+        composition (dict, optional): Diccionario con claves 'upper', 'middle', 'lower', 'mantle'
+        boundaries (list, optional): Lista [d1, d2, d3] con fronteras entre capas (m)
+                                     Default: [16e3, 23e3, 39e3] (Tierra)
         
-    Returns
-    -------
-    dict
-        Diccionario de composición modal {mineral: fracción}
+    Retorna:
+        dict: Diccionario de composición modal {mineral: fracción}
+    
+    English:
+    Returns the modal composition dictionary for a given depth.
+    
+    Parameters:
+        z (float): Depth (m)
+        composition (dict, optional): Dictionary with keys 'upper', 'middle', 'lower', 'mantle'
+        boundaries (list, optional): List [d1, d2, d3] with layer boundaries (m)
+                                     Default: [16e3, 23e3, 39e3] (Earth)
+        
+    Returns:
+        dict: Modal composition dictionary {mineral: fraction}
     """
     if composition is None:
         composition = COMPOSITION_DEFAULT
@@ -321,17 +341,23 @@ def get_composition_at_depth(z, composition=None, boundaries=None):
 
 def normalize_modal_dict(modal_dict):
     """
+    Español:
     Normaliza un diccionario modal a fracciones que sumen 1.0.
     
-    Parameters
-    ----------
-    modal_dict : dict
-        Diccionario {mineral: valor}
+    Parámetros:
+        modal_dict (dict): Diccionario {mineral: valor}
         
-    Returns
-    -------
-    dict
-        Diccionario normalizado {mineral: fracción}
+    Retorna:
+        dict: Diccionario normalizado {mineral: fracción}
+    
+    English:
+    Normalize a modal dictionary to fractions that sum to 1.0.
+    
+    Parameters:
+        modal_dict (dict): Dictionary {mineral: value}
+        
+    Returns:
+        dict: Normalized dictionary {mineral: fraction}
     """
     comp = {m: v for m, v in modal_dict.items() if v > 0}
     s = sum(comp.values())
@@ -347,23 +373,29 @@ def normalize_modal_dict(modal_dict):
 
 def modal_to_mass_fractions(modal_dict, mineral_objects, P=1e5, T=298.0):
     """
+    Español:
     Convierte fracciones modales (volumétricas) a fracciones de masa.
     
-    Parameters
-    ----------
-    modal_dict : dict
-        Fracciones modales {mineral: fracción_vol} (suma = 1.0)
-    mineral_objects : dict
-        Objetos BurnMan {mineral_name: mineral_obj}
-    P : float
-        Presión (Pa)
-    T : float
-        Temperatura (K)
+    Parámetros:
+        modal_dict (dict): Fracciones modales {mineral: fracción_vol} (suma = 1.0)
+        mineral_objects (dict): Objetos BurnMan {mineral_name: mineral_obj}
+        P (float): Presión (Pa)
+        T (float): Temperatura (K)
         
-    Returns
-    -------
-    dict
-        Fracciones de masa {mineral: fracción_masa}
+    Retorna:
+        dict: Fracciones de masa {mineral: fracción_masa}
+    
+    English:
+    Convert modal (volumetric) fractions to mass fractions.
+    
+    Parameters:
+        modal_dict (dict): Modal fractions {mineral: vol_fraction} (sum = 1.0)
+        mineral_objects (dict): BurnMan objects {mineral_name: mineral_obj}
+        P (float): Pressure (Pa)
+        T (float): Temperature (K)
+        
+    Returns:
+        dict: Mass fractions {mineral: mass_fraction}
     """
     mass_props = {}
     
@@ -388,25 +420,33 @@ def modal_to_mass_fractions(modal_dict, mineral_objects, P=1e5, T=298.0):
 
 def make_composite_from_modal(modal_dict, mineral_objects, P=1e5, T=298.0):
     """
+    Español:
     Crea un Composite de BurnMan desde composición modal.
     
     Pipeline: modal → mass fracs → mole fracs → Composite
     
-    Parameters
-    ----------
-    modal_dict : dict
-        Composición modal (puede no estar normalizada)
-    mineral_objects : dict
-        Objetos BurnMan
-    P : float
-        Presión (Pa)
-    T : float
-        Temperatura (K)
+    Parámetros:
+        modal_dict (dict): Composición modal (puede no estar normalizada)
+        mineral_objects (dict): Objetos BurnMan
+        P (float): Presión (Pa)
+        T (float): Temperatura (K)
         
-    Returns
-    -------
-    burnman.Composite
-        Objeto Composite listo para set_state()
+    Retorna:
+        burnman.Composite: Objeto Composite listo para set_state()
+    
+    English:
+    Create a BurnMan Composite from modal composition.
+    
+    Pipeline: modal → mass fracs → mole fracs → Composite
+    
+    Parameters:
+        modal_dict (dict): Modal composition (may not be normalized)
+        mineral_objects (dict): BurnMan objects
+        P (float): Pressure (Pa)
+        T (float): Temperature (K)
+        
+    Returns:
+        burnman.Composite: Composite object ready for set_state()
     """
     # Normalizar
     modal_norm = normalize_modal_dict(modal_dict)
@@ -438,23 +478,29 @@ def make_composite_from_modal(modal_dict, mineral_objects, P=1e5, T=298.0):
 def scale_layer_boundaries(R_planet, ref_boundaries=[16e3, 23e3, 39e3],
                            R_ref=Re, max_fraction=0.5):
     """
+    Español:
     Escala las profundidades de fronteras de capas según el radio del planeta.
     
-    Parameters
-    ----------
-    R_planet : float
-        Radio del planeta (m)
-    ref_boundaries : list
-        Profundidades de referencia [d1, d2, d3] (m)
-    R_ref : float
-        Radio de referencia (m), default = R_Earth
-    max_fraction : float
-        Fracción máxima del radio permitida para fronteras
+    Parámetros:
+        R_planet (float): Radio del planeta (m)
+        ref_boundaries (list): Profundidades de referencia [d1, d2, d3] (m)
+        R_ref (float): Radio de referencia (m), default = R_Earth
+        max_fraction (float): Fracción máxima del radio permitida para fronteras
         
-    Returns
-    -------
-    list
-        Lista [d1_scaled, d2_scaled, d3_scaled] (m)
+    Retorna:
+        list: Lista [d1_scaled, d2_scaled, d3_scaled] (m)
+    
+    English:
+    Scale layer boundary depths according to planet radius.
+    
+    Parameters:
+        R_planet (float): Planet radius (m)
+        ref_boundaries (list): Reference depths [d1, d2, d3] (m)
+        R_ref (float): Reference radius (m), default = R_Earth
+        max_fraction (float): Maximum fraction of radius allowed for boundaries
+        
+    Returns:
+        list: List [d1_scaled, d2_scaled, d3_scaled] (m)
     """
     if R_planet <= 0:
         raise ValueError("R_planet debe ser > 0")
@@ -475,34 +521,43 @@ def scale_layer_boundaries(R_planet, ref_boundaries=[16e3, 23e3, 39e3],
 
 
 # =============================================================================
-# MODELO DE PRODUCCIÓN RADIACTIVA
+# RADIOGENIC HEAT PRODUCTION MODEL / MODELO DE PRODUCCIÓN RADIACTIVA
 # =============================================================================
 
 def radiogenic_heat_profile(z, boundaries=None, A_surface=2.5e-6,
                             h_r=10e3, A_mantle=1.5e-8):
     """
+    Español:
     Perfil de producción radiactiva con modelo EXPONENCIAL (Hasterok 2011).
     
     A(z) = A_surface · exp(-z/h_r)  para z < z_moho
     A(z) = A_mantle                  para z ≥ z_moho
     
-    Parameters
-    ----------
-    z : array_like
-        Profundidades (m)
-    boundaries : list, optional
-        [d1, d2, d3] fronteras de capas (m). d3 = Moho
-    A_surface : float
-        Producción superficial (W/m³). Default: 2.5e-6 (2.5 μW/m³)
-    h_r : float
-        Profundidad característica (m). Default: 10 km
-    A_mantle : float
-        Producción en manto (W/m³). Default: 1.5e-8
+    Parámetros:
+        z (array_like): Profundidades (m)
+        boundaries (list, optional): [d1, d2, d3] fronteras de capas (m). d3 = Moho
+        A_surface (float): Producción superficial (W/m³). Default: 2.5e-6 (2.5 μW/m³)
+        h_r (float): Profundidad característica (m). Default: 10 km
+        A_mantle (float): Producción en manto (W/m³). Default: 1.5e-8
         
-    Returns
-    -------
-    np.ndarray
-        Array con A(z) en W/m³
+    Retorna:
+        np.ndarray: Array con A(z) en W/m³
+    
+    English:
+    Radiogenic heat production profile with EXPONENTIAL model (Hasterok 2011).
+    
+    A(z) = A_surface · exp(-z/h_r)  for z < z_moho
+    A(z) = A_mantle                  for z ≥ z_moho
+    
+    Parameters:
+        z (array_like): Depths (m)
+        boundaries (list, optional): [d1, d2, d3] layer boundaries (m). d3 = Moho
+        A_surface (float): Surface production (W/m³). Default: 2.5e-6 (2.5 μW/m³)
+        h_r (float): Characteristic depth (m). Default: 10 km
+        A_mantle (float): Mantle production (W/m³). Default: 1.5e-8
+        
+    Returns:
+        np.ndarray: Array with A(z) in W/m³
     """
     z = np.asarray(z)
     
@@ -523,7 +578,7 @@ def radiogenic_heat_profile(z, boundaries=None, A_surface=2.5e-6,
 
 
 # =============================================================================
-# FUNCIÓN PRINCIPAL: CALCULAR PERFIL GEOTÉRMICO CON DETECCIÓN DE LÍMITES
+# MAIN FUNCTION: CALCULATE GEOTHERMAL PROFILE / FUNCIÓN PRINCIPAL: CALCULAR PERFIL GEOTÉRMICO 
 # =============================================================================
 
 def calculate_geotherm(rocks, q_s, z_max, dz, R_planet, M_total,
@@ -535,6 +590,7 @@ def calculate_geotherm(rocks, q_s, z_max, dz, R_planet, M_total,
                       tol_T=1e-3, tol_P=1e-3,
                       DEBUG=False):
     """
+    Español:
     Calcula perfiles T(z), P(z), ρ(z), q(z) integrando ecuación de conducción 1D.
     
     Ecuación de conducción en estado estacionario:
@@ -543,73 +599,69 @@ def calculate_geotherm(rocks, q_s, z_max, dz, R_planet, M_total,
     Resuelve iterativamente el acoplamiento T-P-ρ usando BurnMan para
     obtener propiedades físicas consistentes con la mineralogía.
     
-    Parameters
-    ----------
-    rocks : dict
-        Composites de BurnMan para cada capa:
-        {'upper': Composite, 'middle': Composite, 'lower': Composite, 'mantle': Composite}
-    q_s : float
-        Flujo de calor superficial (W/m²)
-    z_max : float
-        Profundidad máxima de integración (m)
-    dz : float
-        Paso de integración (m)
-    R_planet : float
-        Radio del planeta (m)
-    M_total : float
-        Masa total del planeta (kg)
-    composition : dict, optional
-        Composiciones modales por capa. Default: COMPOSITION_DEFAULT
-    boundaries : list, optional
-        [d1, d2, d3] fronteras entre capas (m). Default: [16e3, 23e3, 39e3]
-    P_top : float
-        Presión superficial (Pa). Default: 1e5
-    T_top : float
-        Temperatura superficial (K). Default: 288
-    rho_top : float
-        Densidad superficial (kg/m³). Default: 2800
-    g_top : float, optional
-        Gravedad superficial (m/s²). Si None, se calcula desde M_total
-    A_surface : float
-        Producción radiactiva superficial (W/m³). Default: 2.5e-6
-    h_r : float
-        Profundidad característica de decaimiento (m). Default: 10e3
-    A_mantle : float
-        Producción radiactiva del manto (W/m³). Default: 1.5e-8
-    T_max_safe : float
-        Temperatura máxima segura (K) antes de límites de BurnMan. Default: 2150
-        Si la temperatura calculada excede este límite, el cálculo se detiene
-        y retorna el perfil parcial hasta donde fue posible calcular.
-    max_iter_T, max_iter_P : int
-        Número máximo de iteraciones
-    tol_T, tol_P : float
-        Tolerancias de convergencia
-    DEBUG : bool
-        Imprimir información de depuración
+    English:
+    Calculate profiles T(z), P(z), ρ(z), q(z) integrating 1D conduction equation.
+    
+    Steady-state conduction equation:
+    d/dz[λ(z,T,P) dT/dz] + A(z) = 0
+    
+    Iteratively solves T-P-ρ coupling using BurnMan to obtain
+    physical properties consistent with mineralogy.
+    
+    Parámetros / Parameters:
+        rocks (dict): Composites de BurnMan para cada capa / BurnMan Composites for each layer
+                     {'upper': Composite, 'middle': Composite, 'lower': Composite, 'mantle': Composite}
+        q_s (float): Flujo de calor superficial (W/m²) / Surface heat flux (W/m²)
+        z_max (float): Profundidad máxima de integración (m) / Maximum integration depth (m)
+        dz (float): Paso de integración (m) / Integration step (m)
+        R_planet (float): Radio del planeta (m) / Planet radius (m)
+        M_total (float): Masa total del planeta (kg) / Total planet mass (kg)
+        composition (dict, optional): Composiciones modales por capa / Modal compositions by layer
+                                     Default: COMPOSITION_DEFAULT
+        boundaries (list, optional): [d1, d2, d3] fronteras entre capas (m) / layer boundaries (m)
+                                    Default: [16e3, 23e3, 39e3]
+        P_top (float): Presión superficial (Pa) / Surface pressure (Pa). Default: 1e5
+        T_top (float): Temperatura superficial (K) / Surface temperature (K). Default: 288
+        rho_top (float): Densidad superficial (kg/m³) / Surface density (kg/m³). Default: 2800
+        g_top (float, optional): Gravedad superficial (m/s²) / Surface gravity (m/s²)
+                                Si None, se calcula desde M_total / If None, calculated from M_total
+        A_surface (float): Producción radiactiva superficial (W/m³) / Surface radiogenic production (W/m³)
+                          Default: 2.5e-6
+        h_r (float): Profundidad característica de decaimiento (m) / Characteristic decay depth (m)
+                    Default: 10e3
+        A_mantle (float): Producción radiactiva del manto (W/m³) / Mantle radiogenic production (W/m³)
+                         Default: 1.5e-8
+        T_max_safe (float): Temperatura máxima segura (K) antes de límites de BurnMan / 
+                           Maximum safe temperature (K) before BurnMan limits. Default: 2150
+                           Si la temperatura calculada excede este límite, el cálculo se detiene /
+                           If calculated temperature exceeds this limit, calculation stops
+        max_iter_T, max_iter_P (int): Número máximo de iteraciones / Maximum number of iterations
+        tol_T, tol_P (float): Tolerancias de convergencia / Convergence tolerances
+        DEBUG (bool): Imprimir información de depuración / Print debugging information
         
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame con columnas:
-        - depth_m: profundidad (m)
-        - depth_km: profundidad (km)
-        - T_K: temperatura (K)
-        - P_Pa: presión (Pa)
-        - P_GPa: presión (GPa)
-        - rho_kg_m3: densidad (kg/m³)
-        - q_W_m2: flujo de calor (W/m²)
-        - A_uW_m3: producción radiactiva (μW/m³)
+    Retorna / Returns:
+        pd.DataFrame: DataFrame con columnas / DataFrame with columns:
+            - depth_m: profundidad (m) / depth (m)
+            - depth_km: profundidad (km) / depth (km)
+            - T_K: temperatura (K) / temperature (K)
+            - P_Pa: presión (Pa) / pressure (Pa)
+            - P_GPa: presión (GPa) / pressure (GPa)
+            - rho_kg_m3: densidad (kg/m³) / density (kg/m³)
+            - q_W_m2: flujo de calor (W/m²) / heat flux (W/m²)
+            - A_uW_m3: producción radiactiva (μW/m³) / radiogenic production (μW/m³)
         
-    Notes
-    -----
-    Si el cálculo se detiene anticipadamente por límites de temperatura,
-    el DataFrame solo contiene las capas calculadas exitosamente (perfil parcial).
+    Notas / Notes:
+        Si el cálculo se detiene anticipadamente por límites de temperatura,
+        el DataFrame solo contiene las capas calculadas exitosamente (perfil parcial).
+        
+        If calculation stops early due to temperature limits,
+        DataFrame only contains successfully calculated layers (partial profile).
     """
     if composition is None:
         composition = COMPOSITION_DEFAULT
     
     if boundaries is None:
-        boundaries = [16e3, 23e3, 39e3]
+        boundaries = scale_layer_boundaries(R_planet)
     
     d1, d2, d3 = boundaries
     
@@ -659,7 +711,7 @@ def calculate_geotherm(rocks, q_s, z_max, dz, R_planet, M_total,
         
         # DETECCIÓN DE LÍMITE: Si Ti ya excede el límite, detener
         if Ti > T_max_safe:
-            if DEBUG or True:  # Siempre notificar cuando se detiene
+            if DEBUG or True:  
                 print(f"⚠️  Cálculo detenido en z = {zi/1000:.2f} km (T = {Ti:.1f} K > {T_max_safe:.1f} K)")
                 print(f"   BurnMan puede fallar a temperaturas mayores.")
                 print(f"   Retornando perfil parcial con {i} capas calculadas.")
@@ -839,28 +891,34 @@ def calculate_geotherm(rocks, q_s, z_max, dz, R_planet, M_total,
 
 
 # =============================================================================
-# FUNCIÓN AUXILIAR: PREPARAR ROCKS DICT
+# AUXILIARY FUNCTION: PREPARE ROCKS DICT / FUNCIÓN AUXILIAR: PREPARAR ROCKS DICT
 # =============================================================================
 
 def prepare_rocks_dict(composition=None, mineral_objects=None, P=1e5, T=288.0):
     """
+    Español:
     Prepara el diccionario de Composites de BurnMan para cada capa.
     
-    Parameters
-    ----------
-    composition : dict, optional
-        Composiciones modales. Default: COMPOSITION_DEFAULT
-    mineral_objects : dict, optional
-        Objetos BurnMan. Si None, se crean con get_mineral_objects()
-    P : float
-        Presión de referencia (Pa)
-    T : float
-        Temperatura de referencia (K)
+    Parámetros:
+        composition (dict, optional): Composiciones modales. Default: COMPOSITION_DEFAULT
+        mineral_objects (dict, optional): Objetos BurnMan. Si None, se crean con get_mineral_objects()
+        P (float): Presión de referencia (Pa)
+        T (float): Temperatura de referencia (K)
         
-    Returns
-    -------
-    dict
-        {'upper': Composite, 'middle': Composite, 'lower': Composite, 'mantle': Composite}
+    Retorna:
+        dict: {'upper': Composite, 'middle': Composite, 'lower': Composite, 'mantle': Composite}
+    
+    English:
+    Prepare the dictionary of BurnMan Composites for each layer.
+    
+    Parameters:
+        composition (dict, optional): Modal compositions. Default: COMPOSITION_DEFAULT
+        mineral_objects (dict, optional): BurnMan objects. If None, created with get_mineral_objects()
+        P (float): Reference pressure (Pa)
+        T (float): Reference temperature (K)
+        
+    Returns:
+        dict: {'upper': Composite, 'middle': Composite, 'lower': Composite, 'mantle': Composite}
     """
     if composition is None:
         composition = COMPOSITION_DEFAULT
@@ -878,77 +936,89 @@ def prepare_rocks_dict(composition=None, mineral_objects=None, P=1e5, T=288.0):
 
 
 # =============================================================================
-# MODELOS DE EVOLUCIÓN TEMPORAL
+# TEMPORAL EVOLUTION MODELS / MODELOS DE EVOLUCIÓN TEMPORAL
 # =============================================================================
 
 def q_s_turcotte(t_Ga, q0=65e-3, tau=2.0):
     """
+    Español:
     Modelo de flujo de calor temporal de Turcotte & Schubert (2014).
     
     q_s(t) = q₀ · exp(t/τ)
     
     Modelo exponencial simple basado en el decaimiento radiactivo promedio.
     
-    Parameters
-    ----------
-    t_Ga : float or array
-        Tiempo antes del presente (Ga). Positivo hacia el pasado.
-        Ej: t=0 (presente), t=1 (hace 1 Ga), t=4.5 (formación de la Tierra)
-    q0 : float
-        Flujo de calor superficial actual (W/m²). Default: 65e-3 (65 mW/m²)
-    tau : float
-        Escala de tiempo característica (Ga). Default: 2.0 Ga
-        (tiempo de decaimiento efectivo de elementos radiactivos)
+    Parámetros:
+        t_Ga (float or array): Tiempo antes del presente (Ga). Positivo hacia el pasado.
+                              Ej: t=0 (presente), t=1 (hace 1 Ga), t=4.5 (formación de la Tierra)
+        q0 (float): Flujo de calor superficial actual (W/m²). Default: 65e-3 (65 mW/m²)
+        tau (float): Escala de tiempo característica (Ga). Default: 2.0 Ga
+                    (tiempo de decaimiento efectivo de elementos radiactivos)
         
-    Returns
-    -------
-    float or array
-        Flujo de calor superficial (W/m²)
+    Retorna:
+        float or array: Flujo de calor superficial (W/m²)
+    
+    English:
+    Temporal heat flux model from Turcotte & Schubert (2014).
+    
+    q_s(t) = q₀ · exp(t/τ)
+    
+    Simple exponential model based on average radioactive decay.
+    
+    Parameters:
+        t_Ga (float or array): Time before present (Ga). Positive towards past.
+                              Ex: t=0 (present), t=1 (1 Ga ago), t=4.5 (Earth formation)
+        q0 (float): Current surface heat flux (W/m²). Default: 65e-3 (65 mW/m²)
+        tau (float): Characteristic time scale (Ga). Default: 2.0 Ga
+                    (effective decay time of radioactive elements)
         
-    Examples
-    --------
-    >>> q_s_turcotte(0.0)       # Presente
-    0.065  # 65 mW/m²
-    
-    >>> q_s_turcotte(1.0)       # Hace 1 Ga
-    0.107  # ~107 mW/m²
-    
-    >>> q_s_turcotte(4.5)       # Formación de la Tierra
-    0.778  # ~778 mW/m²
-    
-    References
-    ----------
-    Turcotte, D. L., & Schubert, G. (2014). Geodynamics (3rd ed.).
-    Cambridge University Press.
+    Returns:
+        float or array: Surface heat flux (W/m²)
+        
+    References:
+        Turcotte, D. L., & Schubert, G. (2014). Geodynamics (3rd ed.).
+        Cambridge University Press.
     """
     return q0 * np.exp(t_Ga / tau)
 
 
 def A_surface_temporal(t_Ga, A0=2.5e-6, tau=2.0):
     """
+    Español:
     Producción radiactiva superficial en función del tiempo.
     
     A_surface(t) = A₀ · exp(t/τ)
     
-    Parameters
-    ----------
-    t_Ga : float or array
-        Tiempo antes del presente (Ga)
-    A0 : float
-        Producción radiactiva actual (W/m³). Default: 2.5e-6 (2.5 μW/m³)
-    tau : float
-        Escala de tiempo del decaimiento (Ga). Default: 2.0 Ga
+    Parámetros:
+        t_Ga (float or array): Tiempo antes del presente (Ga)
+        A0 (float): Producción radiactiva actual (W/m³). Default: 2.5e-6 (2.5 μW/m³)
+        tau (float): Escala de tiempo del decaimiento (Ga). Default: 2.0 Ga
         
-    Returns
-    -------
-    float or array
-        Producción radiactiva superficial (W/m³)
+    Retorna:
+        float or array: Producción radiactiva superficial (W/m³)
         
-    Notes
-    -----
-    - Sigue el mismo decaimiento exponencial que el flujo de calor
-    - En el pasado había más elementos radiactivos
-    - Se usa en el perfil: A(z,t) = A_surface(t) · exp(-z/h_r)
+    Notas:
+        - Sigue el mismo decaimiento exponencial que el flujo de calor
+        - En el pasado había más elementos radiactivos
+        - Se usa en el perfil: A(z,t) = A_surface(t) · exp(-z/h_r)
+    
+    English:
+    Surface radiogenic production as a function of time.
+    
+    A_surface(t) = A₀ · exp(t/τ)
+    
+    Parameters:
+        t_Ga (float or array): Time before present (Ga)
+        A0 (float): Current radiogenic production (W/m³). Default: 2.5e-6 (2.5 μW/m³)
+        tau (float): Decay time scale (Ga). Default: 2.0 Ga
+        
+    Returns:
+        float or array: Surface radiogenic production (W/m³)
+        
+    Notes:
+        - Follows same exponential decay as heat flux
+        - More radioactive elements existed in the past
+        - Used in profile: A(z,t) = A_surface(t) · exp(-z/h_r)
     """
     return A0 * np.exp(t_Ga / tau)
 
@@ -961,73 +1031,59 @@ def calculate_geotherm_evolution(rocks, composition,
                                  q0=65e-3, tau=2.0, t_Ga=np.linspace(0.001, 2.5, 10),
                                  T_max_safe=2150.0,):
     """
+    Español:
     Calcula la evolución temporal del gradiente geotérmico.
     
     Usa el modelo de Turcotte & Schubert (2014) para el flujo de calor
     temporal y calcula perfiles geotérmicos para múltiples épocas.
     
-    Parameters
-    ----------
-    rocks : dict
-        Composites de BurnMan {'upper', 'middle', 'lower', 'mantle'}
-    composition : dict
-        Composiciones modales por capa
-    R_planet : float
-        Radio del planeta (m). Default: R_Earth
-    M_total : float
-        Masa del planeta (kg). Default: M_Earth
-    z_max : float
-        Profundidad máxima (m). Default: 100 km
-    dz : float
-        Paso de profundidad (m). Default: 100 m
-    boundaries : list, optional
-        [d1, d2, d3] fronteras de capas (m)
-    T_top : float
-        Temperatura superficial (K). Default: 288
-    h_r : float
-        Profundidad característica radiactiva (m). Default: 10 km
-    q0 : float
-        Flujo de calor actual (W/m²). Default: 65e-3 (65 mW/m²)
-    tau : float
-        Escala de tiempo (Ga). Default: 2.0
-    T_max_safe : float
-        Temperatura máxima segura (K). Default: 2150
-    n_times : int
-        Número de tiempos a calcular. Default: 10
-    t_range : tuple
-        (t_min, t_max) en Ga. Default: (0.001, 2.0)
-        
-    Returns
-    -------
-    dict
-        Diccionario con:
-        - 't_Ga': array de tiempos (Ga)
-        - 'q_s': array de flujos de calor (W/m²)
-        - 'profiles': lista de DataFrames con perfiles T(z)
-        - 'gradients': array de gradientes superficiales (K/km)
-        
-    Notes
-    -----
-    Para cada tiempo t:
-    1. Calcula q_s(t) con modelo de Turcotte
-    2. Calcula A_surface(t)
-    3. Calcula perfil T(z) con calculate_geotherm()
-    4. Extrae gradiente superficial (primeros 1 km)
+    English:
+    Calculate the temporal evolution of the geothermal gradient.
     
-    Si un perfil se detiene por límites de BurnMan (T > T_max_safe),
-    retorna perfil parcial para ese tiempo.
+    Uses the Turcotte & Schubert (2014) model for temporal heat flux
+    and calculates geothermal profiles for multiple epochs.
     
-    Examples
-    --------
-    >>> results = calculate_geotherm_evolution(
-    ...     rocks=rocks,
-    ...     composition=composition,
-    ...     n_times=10
-    ... )
-    >>> plot_gradient_evolution(results)
+    Parámetros / Parameters:
+        rocks (dict): Composites de BurnMan / BurnMan Composites
+                     {'upper', 'middle', 'lower', 'mantle'}
+        composition (dict): Composiciones modales por capa / Modal compositions by layer
+        R_planet (float): Radio del planeta (m) / Planet radius (m). Default: R_Earth
+        M_total (float): Masa del planeta (kg) / Planet mass (kg). Default: M_Earth
+        z_max (float): Profundidad máxima (m) / Maximum depth (m). Default: 100 km
+        dz (float): Paso de profundidad (m) / Depth step (m). Default: 100 m
+        boundaries (list, optional): [d1, d2, d3] fronteras de capas (m) / layer boundaries (m)
+        T_top (float): Temperatura superficial (K) / Surface temperature (K). Default: 288
+        h_r (float): Profundidad característica radiactiva (m) / Radiogenic characteristic depth (m)
+                    Default: 10 km
+        q0 (float): Flujo de calor actual (W/m²) / Current heat flux (W/m²)
+                   Default: 65e-3 (65 mW/m²)
+        tau (float): Escala de tiempo (Ga) / Time scale (Ga). Default: 2.0
+        t_Ga (array): Tiempos a calcular (Ga) / Times to calculate (Ga)
+        T_max_safe (float): Temperatura máxima segura (K) / Maximum safe temperature (K)
+                           Default: 2150
+        
+    Retorna / Returns:
+        dict: Diccionario con / Dictionary with:
+            - 't_Ga': array de tiempos (Ga) / array of times (Ga)
+            - 'q_s': array de flujos de calor (W/m²) / array of heat fluxes (W/m²)
+            - 'profiles': lista de DataFrames con perfiles T(z) / list of DataFrames with T(z) profiles
+            - 'gradients': array de gradientes superficiales (K/km) / array of surface gradients (K/km)
+        
+    Notas / Notes:
+        Para cada tiempo t / For each time t:
+        1. Calcula q_s(t) con modelo de Turcotte / Calculate q_s(t) with Turcotte model
+        2. Calcula A_surface(t) / Calculate A_surface(t)
+        3. Calcula perfil T(z) con calculate_geotherm() / Calculate T(z) profile with calculate_geotherm()
+        4. Extrae gradiente superficial (primeros 1 km) / Extract surface gradient (first 1 km)
+        
+        Si un perfil se detiene por límites de BurnMan (T > T_max_safe),
+        retorna perfil parcial para ese tiempo.
+        
+        If a profile stops due to BurnMan limits (T > T_max_safe),
+        returns partial profile for that time.
     """
     if boundaries is None:
-        boundaries = [16e3, 23e3, 39e3]
+        boundaries = scale_layer_boundaries(R_planet)
         
     # Calcular flujos de calor con modelo de Turcotte
     q_s = q_s_turcotte(t_Ga, q0=q0, tau=tau)
@@ -1088,11 +1144,11 @@ def calculate_geotherm_evolution(rocks, composition,
 
 
 # =============================================================================
-# EJEMPLO DE USO
+# USAGE EXAMPLE / EJEMPLO DE USO
 # =============================================================================
 
 # =============================================================================
-# RESUMEN DE FUNCIONES DISPONIBLES
+# SUMMARY OF AVAILABLE FUNCTIONS / RESUMEN DE FUNCIONES DISPONIBLES
 # =============================================================================
 """
 FUNCIONES PRINCIPALES:
@@ -1136,17 +1192,17 @@ modal_to_mass_fractions()         - Modal (vol) → fracciones de masa
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("EJEMPLO DE USO: geotherm_calculator.py")
+    print("USAGE EXAMPLE / EJEMPLO DE USO: geotherm_calculator.py")
     print("=" * 70)
     
-    # Preparar minerales y composites
-    print("\n1. Preparando composiciones minerales...")
+    # Prepare minerals and composites / Preparar minerales y composites
+    print("\n1. Preparing mineral compositions / Preparando composiciones minerales...")
     mineral_objects = get_mineral_objects()
     rocks = prepare_rocks_dict(mineral_objects=mineral_objects)
-    print(f"   ✓ Composites creados: {list(rocks.keys())}")
+    print(f"   ✓ Composites created / Composites creados: {list(rocks.keys())}")
     
-    # Calcular perfil geotérmico para la Tierra
-    print("\n2. Calculando perfil geotérmico de la Tierra (presente)...")
+    # Calculate geothermal profile for Earth / Calcular perfil geotérmico para la Tierra
+    print("\n2. Calculating Earth geothermal profile (present) / Calculando perfil geotérmico de la Tierra (presente)...")
     df_geotherm = calculate_geotherm(
         rocks=rocks,
         q_s=65e-3,           # 65 mW/m²
