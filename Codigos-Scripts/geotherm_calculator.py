@@ -27,7 +27,8 @@ Evolución Temporal:
 Nuevas funciones para modelar cómo varía el gradiente geotérmico a lo largo
 del tiempo geológico:
 - q_s_turcotte(): Modelo de flujo de calor temporal (Turcotte & Schubert 2014)
-- A_surface_temporal(): Producción radiactiva temporal
+- A_surface_temporal(): Producción radiactiva temporal de la corteza
+- A_mantle_temporal(): Producción radiactiva temporal del manto
 - calculate_geotherm_evolution(): Calcula perfiles T(z) para múltiples épocas
 
 
@@ -584,7 +585,7 @@ def radiogenic_heat_profile(z, boundaries=None, A_surface=2.5e-6,
 def calculate_geotherm(rocks, q_s, z_max, dz, R_planet, M_total,
                       composition=None, boundaries=None,
                       P_top=1e5, T_top=288.0, rho_top=2800.0, g_top=None,
-                      A_surface=2.5e-6, h_r=10e3, A_mantle=1.5e-8,
+                      A_surface=2.5e-6, h_r=10e3, A_mantle=2e-8,
                       T_max_safe=2150.0,
                       max_iter_T=60, max_iter_P=60,
                       tol_T=1e-3, tol_P=1e-3,
@@ -982,45 +983,86 @@ def q_s_turcotte(t_Ga, q0=65e-3, tau=2.0):
     return q0 * np.exp(t_Ga / tau)
 
 
-def A_surface_temporal(t_Ga, A0=2.5e-6, tau=2.0):
+def A_surface_temporal(t_Ga, A_present=2.5e-6,
+                       tau=2.0, t_present=4.5):
     """
     Español:
-    Producción radiactiva superficial en función del tiempo.
-    
-    A_surface(t) = A₀ · exp(t/τ)
-    
+    Producción radiactiva superficial en función del tiempo,
+    válida para pasado, presente y futuro.
+
+    Convención usada (única y consistente):
+    - t_Ga = tiempo desde la formación del planeta (Ga)
+    - t_present = edad actual del planeta (Ga)
+    - A_present = producción radiogénica ACTUAL (presente)
+
+    Definición:
+        Δt = t_Ga - t_present
+
+        A(t) = A_present · exp( -Δt / τ )
+
+    De modo que:
+        t_Ga < t_present  → pasado  → A > A_present
+        t_Ga = t_present  → presente → A = A_present
+        t_Ga > t_present  → futuro   → A < A_present
+
     Parámetros:
-        t_Ga (float or array): Tiempo antes del presente (Ga)
-        A0 (float): Producción radiactiva actual (W/m³). Default: 2.5e-6 (2.5 μW/m³)
-        tau (float): Escala de tiempo del decaimiento (Ga). Default: 2.0 Ga
-        
+        t_Ga (float or array): Tiempo desde la formación (Ga)
+        A_present (float): Producción radiogénica superficial actual (W/m³)
+                           Default: 2.5e-6 W/m³
+        tau (float): Escala temporal efectiva de decaimiento (Ga)
+                     Default: 2.0 Ga (dominancia K-40 + U)
+        t_present (float): Edad actual del planeta (Ga)
+                           Default: 4.5 Ga
+
     Retorna:
-        float or array: Producción radiactiva superficial (W/m³)
-        
+        float or array: Producción radiogénica superficial (W/m³)
+
     Notas:
-        - Sigue el mismo decaimiento exponencial que el flujo de calor
-        - En el pasado había más elementos radiactivos
-        - Se usa en el perfil: A(z,t) = A_surface(t) · exp(-z/h_r)
-    
-    English:
-    Surface radiogenic production as a function of time.
-    
-    A_surface(t) = A₀ · exp(t/τ)
-    
-    Parameters:
-        t_Ga (float or array): Time before present (Ga)
-        A0 (float): Current radiogenic production (W/m³). Default: 2.5e-6 (2.5 μW/m³)
-        tau (float): Decay time scale (Ga). Default: 2.0 Ga
-        
-    Returns:
-        float or array: Surface radiogenic production (W/m³)
-        
-    Notes:
-        - Follows same exponential decay as heat flux
-        - More radioactive elements existed in the past
-        - Used in profile: A(z,t) = A_surface(t) · exp(-z/h_r)
+        - Compatible con grids que van más allá del presente (futuro).
+        - Referenciado directamente a valores observables actuales.
+        - En línea con Turcotte & Schubert (2014).
     """
-    return A0 * np.exp(t_Ga / tau)
+    dt = t_Ga - t_present
+    return A_present * np.exp(-dt / tau)
+
+def A_mantle_temporal(t_Ga, A_present=0.015e-6,
+                      tau=3.0, t_present=4.5):
+    """
+    Español:
+    Producción radiactiva del manto en función del tiempo,
+    válida para pasado, presente y futuro.
+
+    Convención usada:
+    - t_Ga = tiempo desde la formación del planeta (Ga)
+    - t_present = edad actual del planeta (Ga)
+    - A_present = producción radiogénica ACTUAL del manto
+
+    Definición:
+        Δt = t_Ga - t_present
+
+        A(t) = A_present · exp( -Δt / τ )
+
+    Parámetros:
+        t_Ga (float or array): Tiempo desde la formación (Ga)
+        A_present (float): Producción radiogénica del manto actual (W/m³)
+                           Default: 0.015 μW/m³
+        tau (float): Escala temporal efectiva de decaimiento (Ga)
+                     Default: 3.0 Ga (U-238 + Th-232 dominantes)
+        t_present (float): Edad actual del planeta (Ga)
+                           Default: 4.5 Ga
+
+    Retorna:
+        float or array: Producción radiogénica del manto (W/m³)
+
+    Notas:
+        - Captura correctamente mayor producción en el Arcaico
+          y decaimiento futuro.
+        - τ mayor que en la corteza por menor contribución de K-40.
+        - Consistente con Hasterok & Chapman (2011),
+          Korenaga (2008) y Turcotte & Schubert (2014).
+    """
+    dt = t_Ga - t_present
+    return A_present * np.exp(-dt / tau)
 
 
 def calculate_geotherm_evolution(rocks, composition,
@@ -1028,7 +1070,7 @@ def calculate_geotherm_evolution(rocks, composition,
                                  z_max=100e3, dz=100.0,
                                  boundaries=None,
                                  T_top=288.0, h_r=10e3,
-                                 q0=65e-3, tau=2.0, t_Ga=np.linspace(0.001, 2.5, 10),
+                                 q0=65e-3, tau=2.0, t_Ga=np.linspace(0.001, 2.5, 10), qss=None,
                                  T_max_safe=2150.0,):
     """
     Español:
@@ -1084,9 +1126,13 @@ def calculate_geotherm_evolution(rocks, composition,
     """
     if boundaries is None:
         boundaries = scale_layer_boundaries(R_planet)
-        
-    # Calcular flujos de calor con modelo de Turcotte
-    q_s = q_s_turcotte(t_Ga, q0=q0, tau=tau)
+
+    if qss is None:    
+        # Calcular flujos de calor con modelo de Turcotte
+        q_s = q_s_turcotte(t_Ga, q0=q0, tau=tau)
+
+    else:
+        q_s = qss
     
     # Calcular perfiles para cada tiempo
     profiles = []
@@ -1102,7 +1148,8 @@ def calculate_geotherm_evolution(rocks, composition,
     
     for i, (t, q) in enumerate(zip(t_Ga, q_s)):
         # Producción radiactiva para este tiempo
-        A_surf = A_surface_temporal(t, tau=tau)
+        A_surf = A_surface_temporal(t)
+        A_mant = A_mantle_temporal(t)
         
         # Calcular perfil geotérmico
         df = calculate_geotherm(
@@ -1116,6 +1163,7 @@ def calculate_geotherm_evolution(rocks, composition,
             boundaries=boundaries,
             T_top=T_top,
             A_surface=A_surf,
+            A_mantle=A_mant,
             h_r=h_r,
             T_max_safe=T_max_safe,
             DEBUG=False
@@ -1163,7 +1211,8 @@ Evolución Temporal:
 ------------------
 calculate_geotherm_evolution()    - Evolución del gradiente geotérmico en el tiempo
 q_s_turcotte()                    - Modelo de flujo de calor temporal
-A_surface_temporal()              - Producción radiactiva temporal
+A_surface_temporal()              - Producción radiactiva temporal de la corteza
+A_mantle_temporal()               - Producción radiactiva temporal del manto
 
 Preparación de Datos:
 --------------------
