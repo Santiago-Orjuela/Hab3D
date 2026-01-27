@@ -200,14 +200,6 @@ Caso de estudio aplicado al exoplaneta **TRAPPIST-1e**, un planeta rocoso potenc
 
 ---
 
-### Notebooks exploratorios (no incluidos en el repositorio)
-Los siguientes notebooks son de carácter exploratorio y no se incluyen en el repositorio público:
-- `BurnMan.ipynb`: Pruebas con la librería BurnMan para ecuaciones de estado minerales.
-- `phase_diagram_salinity.ipynb`: Diagramas de fase de agua con salinidad variable.
-- `TRAPPIST-1e.ipynb`: Análisis preliminar del modelado de TRAPPIST-1e con BurnMan.
-
----
-
 ## ⚙️ Requisitos
 
 Python 3.10+ y los paquetes:
