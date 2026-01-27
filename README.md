@@ -60,7 +60,7 @@ Su correcto funcionamiento se **valida en `PlanetaryGrid.ipynb`**.
 
 ### `geotherm_calculator.py`
 **Descripción:**  
-Script para el cálculo de **geotermas planetarias 1D**, incorporando producción radiogénica, conductividad térmica efectiva y condiciones de frontera apropiadas para planetas rocosos y ricos en hielo.
+Script para el cálculo de **geotermas planetarias 1D**, incorporando producción radiogénica, conductividad térmica efectiva y condiciones de frontera apropiadas para planetas rocosos.
 
 **Funcionalidades principales:**
 - Construcción de geotermas radiales a partir de:
@@ -80,7 +80,7 @@ Se importa y **valida dentro de `PlanetaryGrid.ipynb`**, junto con `planetary_gr
 
 ### `habitability_calculator.py`
 **Descripción:**  
-Script base para el cálculo de **índices de aguabilidad y habitabilidad interna** en planetas rocosos y ricos en hielo, a partir de propiedades estructurales y térmicas del interior planetario.
+Script base para el cálculo de **índices de aguabilidad y habitabilidad interna** en planetas rocosos, a partir de propiedades estructurales y térmicas del interior planetario.
 
 Este módulo integra resultados provenientes de:
 - Modelos estructurales del *Planetary Grid*.
