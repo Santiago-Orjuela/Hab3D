@@ -18,6 +18,7 @@ ENV/
 *.dat
 *.csv
 *.npz
+*.pkl
 
 # LaTeX build artifacts
 *.aux
@@ -35,6 +36,7 @@ build/
 .DS_Store
 Thumbs.db
 .vscode/
+.directory
 
 # Generated images/figures
 figures/*.png
@@ -47,6 +49,23 @@ PlanetaryGrid/__pycache__/
 *.tmp
 *.bak
 ~$*
+
+# ============================================================================
+# PROJECT-SPECIFIC EXCLUSIONS / EXCLUSIONES ESPECÍFICAS DEL PROYECTO
+# ============================================================================
+
+# Exclude work-in-progress documents / Excluir documentos en progreso
+Tareas.md
+Temas de Discusión.md
+
+# Exclude LaTeX project folders / Excluir carpetas de proyectos LaTeX
+Textos/Proyecto/
+Textos/Anteproyecto/
+
+# Exclude exploratory notebooks / Excluir notebooks exploratorios
+Codigos-Scripts/BurnMan.ipynb
+Codigos-Scripts/phase_diagram_salinity.ipynb
+Codigos-Scripts/TRAPPIST-1e.ipynb
 
 # Ignore large raw grid files if any (uncomment as needed)
 # PlanetaryGrid/**/*.dat

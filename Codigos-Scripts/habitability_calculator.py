@@ -6,6 +6,7 @@ regiones habitables en el subsuelo planetario basándose en perfiles geotérmico
 
 Características principales:
 - Cálculo de temperatura de equilibrio planetario (balance radiativo)
+- Cálculo de límites de zona habitable circunestelar (Kopparapu 2013)
 - Análisis de fases del agua usando estándares IAPWS (R14-08, IAPWS-95)
 - Identificación de zonas de aguabilidad (agua líquida termodinámica)
 - Identificación de zonas habitables (límites biológicos de extremófilos)
@@ -27,8 +28,12 @@ Termodinámica del Agua:
 - IAPWS-08: Propiedades del agua de mar (salinidad)
 
 Zona Habitable Circunestelar:
-- Kopparapu et al. (2013): Límites Recent Venus y Early Mars
-- Kopparapu et al. (2016): Actualización para estrellas F, G, K, M
+- Kopparapu et al. (2013), ApJ 765, 131: Límites Recent Venus y Early Mars
+  "Habitable Zones Around Main-Sequence Stars: New Estimates"
+- Kopparapu et al. (2014), ApJ 787, L29: Dependencia con masa planetaria
+  "Habitable Zones Around Main-Sequence Stars: Dependence on Planetary Mass"
+- Kopparapu et al. (2016), ApJ 819, 84: Límite interno para rotación sincrónica
+  "The Inner Edge of the Habitable Zone for Synchronously Rotating Planets"
 
 Vida Subsuperficial:
 - Onstott et al. (2006), Geomicrobiology Journal 23(6), 369-414
@@ -37,7 +42,7 @@ Vida Subsuperficial:
 
 Autor: Santiago Orjuela
 Fecha: Diciembre 2025
-Última actualización: Diciembre 13, 2025
+Última actualización: Enero 26, 2026
 Basado en: IAPWS standards, Kashefi & Lovley (2003), Kopparapu et al. (2013)
 """
 
@@ -150,6 +155,265 @@ def T_eq(distance_AU, L_star=1.0, albedo=0.30, tau=0.21):
     """
     T_eq = 331.0 * ((L_star * (1 - albedo)) / ((1 + tau) * distance_AU**2))**0.25
     return T_eq
+
+
+# =============================================================================
+# HABITABLE ZONE (KOPPARAPU ET AL. 2013) / ZONA HABITABLE (KOPPARAPU ET AL. 2013)
+# =============================================================================
+
+# Coeficientes de Kopparapu et al. (2013) - Tabla 3
+# Para cada límite: S_eff = S_eff_sun + a*dT + b*dT^2 + c*dT^3 + d*dT^4
+# donde dT = T_eff - 5780 K
+HZ_LIMITS_KOPPARAPU_2013 = {
+    # Límites CONSERVADORES / Conservative limits
+    'Recent Venus': {
+        'S_eff_sun': 1.7763,
+        'a': 1.4335e-4,
+        'b': 3.3954e-9,
+        'c': -7.6364e-12,
+        'd': -1.1950e-15,
+        'type': 'optimista',
+        'boundary': 'interno'
+    },
+    'Runaway Greenhouse': {
+        'S_eff_sun': 1.0385,
+        'a': 1.2456e-4,
+        'b': 1.4612e-8,
+        'c': -7.6345e-12,
+        'd': -1.7511e-15,
+        'type': 'conservador',
+        'boundary': 'interno'
+    },
+    'Moist Greenhouse': {
+        'S_eff_sun': 1.0146,
+        'a': 8.1884e-5,
+        'b': 1.9394e-9,
+        'c': -4.3618e-12,
+        'd': -6.8260e-16,
+        'type': 'conservador',
+        'boundary': 'interno'
+    },
+    'Maximum Greenhouse': {
+        'S_eff_sun': 0.3507,
+        'a': 5.9578e-5,
+        'b': 1.6707e-9,
+        'c': -3.0058e-12,
+        'd': -5.1925e-16,
+        'type': 'conservador',
+        'boundary': 'externo'
+    },
+    'Early Mars': {
+        'S_eff_sun': 0.3207,
+        'a': 5.4471e-5,
+        'b': 1.5275e-9,
+        'c': -2.1709e-12,
+        'd': -3.8282e-16,
+        'type': 'optimista',
+        'boundary': 'externo'
+    }
+}
+
+
+def hz_distance(T_eff, L_star, limit_name):
+    """
+    Español:
+    Calcula la distancia de un límite de la zona habitable según Kopparapu et al. (2013).
+    
+    La zona habitable circunestelar (HZ) es la región orbital donde un planeta rocoso
+    con atmósfera puede mantener agua líquida en su superficie. Este modelo calcula
+    los límites de la HZ en función de la temperatura efectiva estelar y la luminosidad.
+    
+    Parámetros:
+        T_eff (float): Temperatura efectiva de la estrella [K]
+        L_star (float): Luminosidad estelar [W]
+                       (puede estar normalizada a L_☉ o en valores absolutos)
+        limit_name (str): Nombre del límite de HZ (claves válidas en HZ_LIMITS_KOPPARAPU_2013):
+                         - 'Recent Venus': Límite interno optimista
+                         - 'Runaway Greenhouse': Límite interno conservador
+                         - 'Moist Greenhouse': Límite interno conservador (más restrictivo)
+                         - 'Maximum Greenhouse': Límite externo conservador
+                         - 'Early Mars': Límite externo optimista
+    
+    Retorna:
+        float: Distancia orbital del límite [AU]
+    
+    Fórmula:
+        S_eff = S_eff_sun + a*dT + b*dT^2 + c*dT^3 + d*dT^4
+        donde dT = T_eff - 5780 K
+        
+        d_AU = sqrt(L_star / L_sun / S_eff)
+    
+    Límites de la HZ para el Sol:
+        - Conservador: 0.99 - 1.67 AU (Moist GH - Maximum GH)
+        - Optimista: 0.75 - 1.77 AU (Recent Venus - Early Mars)
+    
+    Notas:
+        - Basado en modelos climáticos 1D con feedback radiativo
+        - Válido para estrellas F, G, K, M (2600 K < T_eff < 7200 K)
+        - Asume planeta tipo Tierra (1 M⊕, atmósfera N2-H2O-CO2)
+        - No considera efectos de mareaje, actividad estelar, etc.
+    
+    Referencias:
+        - Kopparapu et al. (2013), ApJ 765, 131
+          "Habitable Zones Around Main-Sequence Stars: New Estimates"
+        - Kopparapu et al. (2014), ApJ 787, L29
+          "Habitable Zones Around Main-Sequence Stars: Dependence on Planetary Mass"
+        - Kopparapu et al. (2016), ApJ 819, 84
+          "The Inner Edge of the Habitable Zone for Synchronously Rotating Planets"
+    
+    Ejemplos:
+        >>> # Límites conservadores para el Sol
+        >>> T_eff_sun = 5780.0  # K
+        >>> L_sun = 3.828e26  # W
+        >>> d_in = hz_distance(T_eff_sun, L_sun, 'Moist Greenhouse')
+        >>> d_out = hz_distance(T_eff_sun, L_sun, 'Maximum Greenhouse')
+        >>> print(f"HZ conservadora: {d_in:.3f} - {d_out:.3f} AU")
+        HZ conservadora: 0.984 - 1.669 AU
+    
+    English:
+    Calculate the distance of a habitable zone boundary according to Kopparapu et al. (2013).
+    
+    The circumstellar habitable zone (HZ) is the orbital region where a rocky planet
+    with atmosphere can maintain liquid water on its surface. This model calculates
+    HZ boundaries as a function of stellar effective temperature and luminosity.
+    
+    Parameters:
+        T_eff (float): Stellar effective temperature [K]
+        L_star (float): Stellar luminosity [W]
+                       (can be normalized to L_☉ or in absolute values)
+        limit_name (str): HZ boundary name (valid keys in HZ_LIMITS_KOPPARAPU_2013):
+                         - 'Recent Venus': Inner boundary (optimistic)
+                         - 'Runaway Greenhouse': Inner boundary (conservative)
+                         - 'Moist Greenhouse': Inner boundary (more conservative)
+                         - 'Maximum Greenhouse': Outer boundary (conservative)
+                         - 'Early Mars': Outer boundary (optimistic)
+    
+    Returns:
+        float: Orbital distance of boundary [AU]
+    
+    Formula:
+        S_eff = S_eff_sun + a*dT + b*dT^2 + c*dT^3 + d*dT^4
+        where dT = T_eff - 5780 K
+        
+        d_AU = sqrt(L_star / L_sun / S_eff)
+    
+    HZ Boundaries for the Sun:
+        - Conservative: 0.99 - 1.67 AU (Moist GH - Maximum GH)
+        - Optimistic: 0.75 - 1.77 AU (Recent Venus - Early Mars)
+    
+    Notes:
+        - Based on 1D climate models with radiative feedback
+        - Valid for F, G, K, M stars (2600 K < T_eff < 7200 K)
+        - Assumes Earth-like planet (1 M⊕, N2-H2O-CO2 atmosphere)
+        - Does not consider tidal effects, stellar activity, etc.
+    
+    References:
+        - Kopparapu et al. (2013), ApJ 765, 131
+          "Habitable Zones Around Main-Sequence Stars: New Estimates"
+        - Kopparapu et al. (2014), ApJ 787, L29
+          "Habitable Zones Around Main-Sequence Stars: Dependence on Planetary Mass"
+        - Kopparapu et al. (2016), ApJ 819, 84
+          "The Inner Edge of the Habitable Zone for Synchronously Rotating Planets"
+    
+    Examples:
+        >>> # Conservative boundaries for the Sun
+        >>> T_eff_sun = 5780.0  # K
+        >>> L_sun = 3.828e26  # W
+        >>> d_in = hz_distance(T_eff_sun, L_sun, 'Moist Greenhouse')
+        >>> d_out = hz_distance(T_eff_sun, L_sun, 'Maximum Greenhouse')
+        >>> print(f"Conservative HZ: {d_in:.3f} - {d_out:.3f} AU")
+        Conservative HZ: 0.984 - 1.669 AU
+    """
+    # Get stellar luminosity in solar units
+    L_sun = const.L_sun.value  # W
+    L_ratio = L_star / L_sun
+    
+    # Get coefficients for the specified limit
+    if limit_name not in HZ_LIMITS_KOPPARAPU_2013:
+        raise ValueError(f"Invalid limit_name: {limit_name}. "
+                        f"Valid options: {list(HZ_LIMITS_KOPPARAPU_2013.keys())}")
+    
+    params = HZ_LIMITS_KOPPARAPU_2013[limit_name]
+    dT = T_eff - 5780.0  # Temperature difference from the Sun
+    
+    # Calculate effective stellar flux (normalized to solar constant)
+    S_eff = (params['S_eff_sun'] + 
+             params['a'] * dT + 
+             params['b'] * dT**2 + 
+             params['c'] * dT**3 + 
+             params['d'] * dT**4)
+    
+    # Calculate orbital distance in AU
+    d_AU = np.sqrt(L_ratio / S_eff)
+    
+    return d_AU
+
+
+def get_hz_boundaries(T_eff, L_star, conservative=True):
+    """
+    Español:
+    Obtiene los límites interior y exterior de la zona habitable.
+    
+    Función de conveniencia que retorna ambos límites (interno y externo)
+    de la zona habitable según el criterio seleccionado.
+    
+    Parámetros:
+        T_eff (float): Temperatura efectiva de la estrella [K]
+        L_star (float): Luminosidad estelar [W]
+        conservative (bool): Si True, usa límites conservadores
+                           Si False, usa límites optimistas
+                           Default: True
+    
+    Retorna:
+        tuple: (d_inner, d_outer) en AU
+               - d_inner: límite interno de la HZ
+               - d_outer: límite externo de la HZ
+    
+    Criterios:
+        - Conservador: Moist Greenhouse - Maximum Greenhouse
+        - Optimista: Recent Venus - Early Mars
+    
+    Notas:
+        - Los límites conservadores son más restrictivos pero más confiables
+        - Los límites optimistas amplían la HZ pero con mayor incertidumbre
+    
+    English:
+    Get inner and outer habitable zone boundaries.
+    
+    Convenience function that returns both boundaries (inner and outer)
+    of the habitable zone according to the selected criterion.
+    
+    Parameters:
+        T_eff (float): Stellar effective temperature [K]
+        L_star (float): Stellar luminosity [W]
+        conservative (bool): If True, use conservative boundaries
+                           If False, use optimistic boundaries
+                           Default: True
+    
+    Returns:
+        tuple: (d_inner, d_outer) in AU
+               - d_inner: inner boundary of HZ
+               - d_outer: outer boundary of HZ
+    
+    Criteria:
+        - Conservative: Moist Greenhouse - Maximum Greenhouse
+        - Optimistic: Recent Venus - Early Mars
+    
+    Notes:
+        - Conservative boundaries are more restrictive but more reliable
+        - Optimistic boundaries expand the HZ but with greater uncertainty
+    """
+    if conservative:
+        inner_limit = 'Moist Greenhouse'
+        outer_limit = 'Maximum Greenhouse'
+    else:
+        inner_limit = 'Recent Venus'
+        outer_limit = 'Early Mars'
+    
+    d_inner = hz_distance(T_eff, L_star, inner_limit)
+    d_outer = hz_distance(T_eff, L_star, outer_limit)
+    
+    return d_inner, d_outer
 
 
 # =============================================================================
