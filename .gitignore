@@ -58,6 +58,10 @@ PlanetaryGrid/__pycache__/
 Tareas.md
 Temas de Discusión.md
 
+# Exclude sync scripts / Excluir scripts de sincronización
+sync_github.ps1
+GITHUB_SYNC_GUIDE.md
+
 # Exclude LaTeX project folders / Excluir carpetas de proyectos LaTeX
 Textos/Proyecto/
 Textos/Anteproyecto/
