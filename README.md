@@ -1,5 +1,4 @@
 # HAB3D  
-## Seminario Trabajo de Grado  
 ## Evaluación de las condiciones de aguabilidad y habitabilidad en el interior de exoplanetas  
 
 **Autor:** Santiago Andres Orjuela Montealegre
